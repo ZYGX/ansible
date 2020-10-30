@@ -1,0 +1,21 @@
+---
+- hosts: servers
+  remote_user: nxuser
+  tasks:
+    - name: delete ~/.ssh/
+      file: path=~/.ssh/ state=absent
+    - name: generating public/private rsa key pair  #生成公钥和私钥
+      shell: ssh-keygen -t rsa -b 2048 -N '' -f ~/.ssh/id_rsa
+    - name: delete ~/ssh/ dir
+      file: path=~/ssh/ state=absent
+      run_once: true
+    - name: fetch copy  #从各宿主机将公钥拷贝到本机
+      fetch: src=~/.ssh/id_rsa.pub dest=~/ssh/
+    - name: append file authorized_keys.log  #将各个公钥合并成一个文件
+      shell: find ~/ssh/* -type f -exec sh -c 'cat {}>>~/ssh/authorized_keys.log' \;
+      run_once: true
+    - name: copy authorized_keys  #将合成的公钥进行分发
+      copy: src=~/ssh/authorized_keys.log dest=~/.ssh/authorized_keys mode=0600
+    - name: add know_host
+      shell: ssh-keyscan {{ item }} >> ~/.ssh/known_hosts
+      with_items:  "{{play_hosts }}"
